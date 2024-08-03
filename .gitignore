@@ -1,0 +1,6 @@
+train/
+.conda/
+dataset/
+train/
+model/
+csv/
