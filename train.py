@@ -39,7 +39,8 @@ if __name__ == "__main__":
     train_sample = 20000  # 电脑跑不动全量
     test_sample = 400
     sampling_rate = 16000
-    validated_csv = "dataset/validated.csv"
+    train_csv = "dataset/train.csv"
+    test_csv = "dataset/test.csv"
 
     language = "zh"
     task = "transcribe"
@@ -66,11 +67,8 @@ if __name__ == "__main__":
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
-    validated_pd = pd.read_csv(validated_csv, sep="\t").sample(frac=1)
-    train_pd = validated_pd.head(train_sample)
-    test_pd = validated_pd.tail(test_sample)
-    train_dataset = Dataset.from_pandas(train_pd).cast_column("audio", Audio(sampling_rate=sampling_rate))
-    test_dataset = Dataset.from_pandas(test_pd).cast_column("audio", Audio(sampling_rate=sampling_rate))
+    train_dataset = Dataset.from_pandas(pd.read_csv(train_csv, sep="\t").head(train_sample)).cast_column("audio", Audio(sampling_rate=sampling_rate))
+    test_dataset = Dataset.from_pandas(pd.read_csv(train_csv, sep="\t").tail(test_sample)).cast_column("audio", Audio(sampling_rate=sampling_rate))
 
     def prepare_dataset(examples):
         audio = examples["audio"]

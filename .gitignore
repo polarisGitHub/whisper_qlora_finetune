@@ -7,3 +7,4 @@ csv/
 small/
 medium/
 large/
+__pycache__/
