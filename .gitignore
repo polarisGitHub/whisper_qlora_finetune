@@ -4,3 +4,6 @@ dataset/
 train/
 model/
 csv/
+small/
+medium/
+large/

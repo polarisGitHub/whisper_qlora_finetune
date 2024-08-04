@@ -1,10 +1,10 @@
 import torch
 import evaluate
 import pandas as pd
-from datasets import Audio, Dataset
 from dataclasses import dataclass
+from datasets import Audio, Dataset
 from typing import Any, Dict, List, Union
-from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
+from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model, PeftModel, PeftConfig
 from transformers import (
     WhisperProcessor,
     WhisperForConditionalGeneration,
@@ -35,16 +35,15 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
 
 if __name__ == "__main__":
-    batch_size = 48
-    train_sample = 15000 # 电脑跑不动全量
-    train_csv = "dataset/validated.csv"
-    test_csv = "dataset/test.csv"
+    batch_size = 64
+    train_sample = 20000  # 电脑跑不动全量
+    test_sample = 400
+    sampling_rate = 16000
+    validated_csv = "dataset/validated.csv"
 
     language = "zh"
     task = "transcribe"
-    sampling_rate = 16000
-    model_name_or_path = "openai/whisper-large-v3"
-
+    model_name_or_path = "openai/whisper-medium"
     model = WhisperForConditionalGeneration.from_pretrained(
         model_name_or_path,
         quantization_config=BitsAndBytesConfig(load_in_8bit=True),
@@ -53,14 +52,23 @@ if __name__ == "__main__":
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
     model = prepare_model_for_kbit_training(model)
-
     feature_extractor = WhisperFeatureExtractor.from_pretrained(model_name_or_path)
     tokenizer = WhisperTokenizer.from_pretrained(model_name_or_path, language=language, task=task)
     processor = WhisperProcessor.from_pretrained(model_name_or_path, language=language, task=task)
+    config = LoraConfig(
+        r=32,
+        lora_alpha=64,
+        target_modules=["q_proj", "v_proj"],
+        lora_dropout=0.05,
+        bias="none",
+    )
+    model = get_peft_model(model, config)
+
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
-    train_pd = pd.read_csv(train_csv, sep="\t").sample(train_sample)
-    test_pd = pd.read_csv(test_csv, sep="\t")
+    validated_pd = pd.read_csv(validated_csv, sep="\t").sample(frac=1)
+    train_pd = validated_pd.head(train_sample)
+    test_pd = validated_pd.tail(test_sample)
     train_dataset = Dataset.from_pandas(train_pd).cast_column("audio", Audio(sampling_rate=sampling_rate))
     test_dataset = Dataset.from_pandas(test_pd).cast_column("audio", Audio(sampling_rate=sampling_rate))
 
@@ -74,16 +82,6 @@ if __name__ == "__main__":
 
     train_dataset = train_dataset.map(prepare_dataset, num_proc=1)
     test_dataset = test_dataset.map(prepare_dataset, num_proc=1)
-
-    config = LoraConfig(
-        r=32,
-        lora_alpha=64,
-        target_modules=["q_proj", "v_proj"],
-        lora_dropout=0.05,
-        bias="none",
-    )
-    model = get_peft_model(model, config)
-    model.print_trainable_parameters()
 
     # eval爆显存，内存
     # metric = evaluate.load("wer")
@@ -104,7 +102,7 @@ if __name__ == "__main__":
 
     training_args = Seq2SeqTrainingArguments(
         output_dir="train/",
-        num_train_epochs=10,
+        num_train_epochs=15,
         per_device_train_batch_size=batch_size,
         # increase by 2x for every 2x decrease in batch size
         gradient_accumulation_steps=1,
@@ -117,8 +115,8 @@ if __name__ == "__main__":
         dataloader_num_workers=4,
         per_device_eval_batch_size=16,
         generation_max_length=255,
-        save_steps=50,
-        eval_steps=50,
+        save_steps=100,
+        eval_steps=100,
         logging_steps=10,
         report_to=["tensorboard"],
         load_best_model_at_end=True,
