@@ -2,7 +2,7 @@ from peft import PeftModel, PeftConfig
 from transformers import WhisperForConditionalGeneration, WhisperFeatureExtractor, WhisperTokenizer, WhisperProcessor
 
 save_directory = "medium"
-lora_model = "train/checkpoint-1100"
+lora_model = "train/checkpoint-4695"
 peft_config = PeftConfig.from_pretrained(lora_model)
 base_model = WhisperForConditionalGeneration.from_pretrained(peft_config.base_model_name_or_path)
 

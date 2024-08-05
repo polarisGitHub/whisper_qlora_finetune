@@ -33,5 +33,5 @@ class LoraDecoder(object):
             device=self.device,
         )
 
-    def __call__(self, audio_files: list[str], return_timestamps: bool = True) -> list[dict]:
+    def __call__(self, audio_files: list[str], return_timestamps: bool = False) -> list[dict]:
         return self.infer_pipe(audio_files, return_timestamps=return_timestamps, generate_kwargs=self.generate_kwargs)
