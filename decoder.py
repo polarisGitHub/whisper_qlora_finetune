@@ -2,7 +2,7 @@ import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 
-class LoraDecoder(object):
+class Decoder(object):
 
     def __init__(self, lora_model: str, prompt: str = None) -> None:
         self.lora_model = lora_model
@@ -17,7 +17,7 @@ class LoraDecoder(object):
             use_safetensors=True,
         )
 
-        self.generate_kwargs = {"task": "transcribe", "num_beams": 1, "language": "Chinese", "prompt_ids": prompt}
+        self.generate_kwargs = {"task": "transcribe", "num_beams": 1, "language": "Chinese"}
         if prompt is not None:
             self.generate_kwargs["prompt_ids"] = torch.from_numpy(self.processor.get_prompt_ids(prompt)).to(self.device)
 

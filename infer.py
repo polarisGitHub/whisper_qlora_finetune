@@ -1,6 +1,6 @@
-from decoder import LoraDecoder
+from decoder import Decoder
 
-decoder = LoraDecoder("medium", prompt="以下是普通话的句子。")
+decoder = Decoder("medium", prompt="以下是普通话的句子。")
 result = decoder(
     [
         "/home/polaris_he/cv-corpus-12.0-2022-12-07/zh-CN/clips/common_voice_zh-CN_33655758.mp3",
