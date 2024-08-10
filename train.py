@@ -36,7 +36,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
 if __name__ == "__main__":
     batch_size = 64
-    train_sample = 20000  # 电脑跑不动全量
+    train_sample = 30000  # 电脑跑不动全量
     test_sample = 400
     sampling_rate = 16000
     train_csv = "dataset/train.csv"
@@ -81,31 +81,39 @@ if __name__ == "__main__":
     train_dataset = train_dataset.map(prepare_dataset, num_proc=1)
     test_dataset = test_dataset.map(prepare_dataset, num_proc=1)
 
-    # eval爆显存，内存
-    # metric = evaluate.load("wer")
-    # def compute_metrics(pred):
-    #     pred_ids = pred.predictions
-    #     label_ids = pred.label_ids
+    metric = evaluate.load("cer")
 
-    #     # replace -100 with the pad_token_id
-    #     label_ids[label_ids == -100] = tokenizer.pad_token_id
+    def compute_metrics(pred):
+        pred_ids = pred.predictions
+        label_ids = pred.label_ids
 
-    #     # we do not want to group tokens when computing the metrics
-    #     pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-    #     label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+        # replace -100 with the pad_token_id
+        label_ids[label_ids == -100] = tokenizer.pad_token_id
 
-    #     wer = 100 * metric.compute(predictions=pred_str, references=label_str)
+        # we do not want to group tokens when computing the metrics
+        # loss, outputs = self.compute_loss(model, inputs, return_outputs=True)
+        # outputs有两个数据
+        # logits
+        # encoder_last_hidden_state
+        
+        pred_str = tokenizer.batch_decode(pred_ids[0], skip_special_tokens=True)
+        label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+        cer = 100 * metric.compute(predictions=pred_str, references=label_str)
 
-    #     return {"wer": wer}
+        return {"cer": cer}
+
+    def preprocess_logits_for_metrics(logits, labels):
+        pred_ids = torch.argmax(logits[0], dim=-1)
+        return pred_ids, labels
 
     training_args = Seq2SeqTrainingArguments(
         output_dir="train/",
-        num_train_epochs=15,
+        num_train_epochs=20,
         per_device_train_batch_size=batch_size,
         # increase by 2x for every 2x decrease in batch size
         gradient_accumulation_steps=1,
         learning_rate=1e-3,
-        warmup_steps=100,
+        warmup_ratio=0.1,
         eval_strategy="steps",
         # gradient_checkpointing=True,
         # optim="adamw_torch",
@@ -117,8 +125,8 @@ if __name__ == "__main__":
         eval_steps=100,
         logging_steps=10,
         report_to=["tensorboard"],
-        load_best_model_at_end=True,
-        # eval_accumulation_steps=10,
+        # metric_for_best_model="cer",
+        eval_accumulation_steps=5,
         # required as the PeftModel forward doesn't have the signature of the wrapped model's forward
         remove_unused_columns=False,
         label_names=["labels"],  # same reason as above
@@ -131,8 +139,9 @@ if __name__ == "__main__":
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
         data_collator=data_collator,
-        # compute_metrics=compute_metrics,
+        compute_metrics=compute_metrics,
         tokenizer=processor.feature_extractor,
+        preprocess_logits_for_metrics=preprocess_logits_for_metrics,
     )
 
     processor.save_pretrained(training_args.output_dir)

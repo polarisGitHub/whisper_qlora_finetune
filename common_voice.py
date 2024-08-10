@@ -22,8 +22,9 @@ with codecs.open(input_tsv, mode="r", encoding="utf-8") as rf:
                 ]
             )
 
-N = 10
-split_index = int((N - 1) * len(results) / N)
+N = 9
+M = 10
+split_index = int(N * len(results) / M)
 random.shuffle(results)
 
 train = results[:split_index]
