@@ -5,7 +5,7 @@ from decoder import Decoder
 
 # TODO use dataset
 cer = evaluate.load("cer")
-decoder = Decoder("medium", prompt="以下是普通话的句子。")
+decoder = Decoder("large-v3", prompt="以下是普通话的句子。")
 batch_size = 96
 
 test_dataset = []
@@ -21,5 +21,7 @@ for i in tqdm(range(0, len(test_dataset), batch_size)):
     cer.add_batch(predictions=[item["text"] for item in results], references=sentences)
 
 # 19.91 openai/whisper-medium
+# 16.79 openai/whisper-large-v3
 # 10.13 medium-lora
+# 8.44 large-v3-lora
 print(cer.compute() * 100)
